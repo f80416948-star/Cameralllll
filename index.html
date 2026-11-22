@@ -1,0 +1,970 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Антивирус</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #ffffff; /* Белый фон */
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* Главный экран */
+        #mainScreen {
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        h1 {
+            font-size: 28px;
+            color: #333;
+            margin-bottom: 30px;
+        }
+
+        #startBtn {
+            padding: 15px 40px;
+            font-size: 20px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+
+        #startBtn:active {
+            background-color: #0056b3;
+        }
+
+        #progressText {
+            font-size: 40px;
+            font-weight: bold;
+            color: #333;
+            display: none; /* Скрыто до запуска */
+        }
+
+        /* Маленькая кнопка "код" в правом нижнем углу */
+        #secretBtn {
+            position: fixed;
+            bottom: 5px;
+            right: 5px;
+            font-size: 10px;
+            color: #aaa;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        /* Модальное окно для ввода пароля */
+        #loginModal, #galleryModal {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.8);
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+        }
+
+        .modal-content {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+            width: 80%;
+            max-width: 300px;
+        }
+
+        input[type="password"] {
+            width: 90%;
+            padding: 10px;
+            margin: 10px 0;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            font-size: 16px;
+        }
+
+        .modal-content button {
+            padding: 10px 20px;
+            background: #333;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        /* Галерея */
+        #galleryModal {
+            background: #fff;
+            overflow-y: auto;
+            display: none;
+            justify-content: flex-start;
+            padding-top: 20px;
+        }
+
+        #closeGallery {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            font-size: 20px;
+            background: red;
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            border-radius: 5px;
+        }
+
+        #galleryGrid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+            gap: 10px;
+            padding: 10px;
+            width: 90%;
+            max-width: 600px;
+        }
+
+        #galleryGrid img {
+            width: 100%;
+            height: 100px;
+            object-fit: cover;
+            border-radius: 5px;
+        }
+
+        #cameraSection {
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            margin-bottom: 20px;
+            width: 100%;
+        }
+
+        video, canvas {
+            width: 100%;
+            max-width: 300px;
+            border-radius: 10px;
+            background: #000;
+        }
+
+        #snapBtn {
+            margin-top: 10px;
+            padding: 10px 20px;
+            background: #28a745;
+            color: white;
+            border: none;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Главный экран -->
+    <div id="mainScreen">
+        <h1>Антивирус</h1>
+        <button id="startBtn">Запустить</button>
+        <div id="progressText">0%</div>
+    </div>
+
+    <!-- Секретная кнопка -->
+    <div id="secretBtn">код</div>
+
+    <!-- Модальное окно ввода пароля -->
+    <div id="loginModal">
+        <div class="modal-content">
+            <h3>Введите код</h3>
+            <input type="password" id="passwordInput" placeholder="Пароль">
+            <button id="submitPassBtn">Войти</button>
+        </div>
+    </div>
+
+    <!-- Модальное окно галереи (Сейф) -->
+    <div id="galleryModal">
+        <button id="closeGallery">Закрыть</button>
+        
+        <div id="cameraSection">
+            <video id="video" autoplay playsinline></video>
+            <canvas id="canvas" style="display:none;"></canvas>
+            <button id="snapBtn">Сделать фото</button>
+        </div>
+
+        <div id="galleryGrid"></div>
+    </div>
+
+<script>
+    // --- ЛОГИКА АНТИВИРУСА ---
+    const startBtn = document.getElementById('startBtn');
+    const progressText = document.getElementById('progressText');
+    let progress = 0;
+
+    startBtn.addEventListener('click', () => {
+        startBtn.style.display = 'none';
+        progressText.style.display = 'block';
+        
+        const interval = setInterval(() => {
+            progress++;
+            progressText.innerText = progress + '%';
+            
+            if (progress >= 100) {
+                clearInterval(interval);
+                // Можно добавить действие после 100%, например написать "Готово"
+                progressText.innerText = '100%';
+            }
+        }, 50); // Скорость загрузки (50мс = 5 секунд до 100%)
+    });
+
+    // --- ЛОГИКА КОДА ---
+    const secretBtn = document.getElementById('secretBtn');
+    const loginModal = document.getElementById('loginModal');
+    const passwordInput = document.getElementById('passwordInput');
+    const submitPassBtn = document.getElementById('submitPassBtn');
+    const galleryModal = document.getElementById('galleryModal');
+    const closeGallery = document.getElementById('closeGallery');
+
+    secretBtn.addEventListener('click', () => {
+        loginModal.style.display = 'flex';
+        passwordInput.value = ''; // Очистка поля
+    });
+
+    submitPassBtn.addEventListener('click', () => {
+        if (passwordInput.value === 'администратор') {
+            loginModal.style.display = 'none';
+            galleryModal.style.display = 'flex';
+            startCamera(); // Включаем камеру в сейфе
+            renderGallery();
+        } else {
+            alert('Неверный код!');
+        }
+    });
+
+    closeGallery.addEventListener('click', () => {
+        galleryModal.style.display = 'none';
+        stopCamera();
+    });
+
+    // --- ЛОГИКА КАМЕРЫ И ГАЛЕРЕИ ---
+    const video = document.getElementById('video');
+    const canvas = document.getElementById('canvas');
+    const snapBtn = document.getElementById('snapBtn');
+    const galleryGrid = document.getElementById('galleryGrid');
+    const cameraSection = document.getElementById('cameraSection');
+    const STORAGE_KEY = 'antivirus_photos';
+    let stream = null;
+
+    async function startCamera() {
+        cameraSection.style.display = 'flex';
+        try {
+            stream = await navigator.mediaDevices.getUserMedia({
+                video: { facingMode: 'user' }, // Фронтальная камера
+                audio: false
+            });
+            video.srcObject = stream;
+        } catch (err) {
+            console.error('Камера недоступна:', err);
+            // Если камеры нет, просто скрываем блок с камерой
+            cameraSection.style.display = 'none';
+        }
+    }
+
+    function stopCamera() {
+        if (stream) {
+            stream.getTracks().forEach(track => track.stop());
+            stream = null;
+        }
+        cameraSection.style.display = 'none';
+    }
+
+    snapBtn.addEventListener('click', () => {
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+        // Сжимаем фото
+        const smallCanvas = document.createElement('canvas');
+        smallCanvas.width = 400;
+        smallCanvas.height = 400 * (canvas.height / canvas.width);
+        const smallCtx = smallCanvas.getContext('2d');
+        smallCtx.drawImage(canvas, 0, 0, smallCanvas.width, smallCanvas.height);
+        
+        const dataUrl = smallCanvas.toDataURL('image/jpeg', 0.6);
+        
+        const photos = getPhotos();
+        photos.unshift(dataUrl);
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(photos));
+        renderGallery();
+    });
+
+    function getPhotos() {
+        try {
+            return JSON.parse(localStorage.getItem(STORAGE_KEY)) || [];
+        } catch {
+            return [];
+        }
+    }
+
+    function renderGallery() {
+        galleryGrid.innerHTML = '';
+        const photos = getPhotos();
+        photos.forEach(photo => {
+            const img = document.createElement('img');
+            img.src = photo;
+            galleryGrid.appendChild(img);
+        });
+    }
+</script>
+</body>
+</html> <!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Антивирус</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #ffffff; /* Белый фон */
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* Главный экран */
+        #mainScreen {
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        h1 {
+            font-size: 28px;
+            color: #333;
+            margin-bottom: 30px;
+        }
+
+        #startBtn {
+            padding: 15px 40px;
+            font-size: 20px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+
+        #startBtn:active {
+            background-color: #0056b3;
+        }
+
+        #progressText {
+            font-size: 40px;
+            font-weight: bold;
+            color: #333;
+            display: none; /* Скрыто до запуска */
+        }
+
+        /* Маленькая кнопка "код" в правом нижнем углу */
+        #secretBtn {
+            position: fixed;
+            bottom: 5px;
+            right: 5px;
+            font-size: 10px;
+            color: #aaa;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        /* Модальное окно для ввода пароля */
+        #loginModal, #galleryModal {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.8);
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+        }
+
+        .modal-content {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+            width: 80%;
+            max-width: 300px;
+        }
+
+        input[type="password"] {
+            width: 90%;
+            padding: 10px;
+            margin: 10px 0;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            font-size: 16px;
+        }
+
+        .modal-content button {
+            padding: 10px 20px;
+            background: #333;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        /* Галерея */
+        #galleryModal {
+            background: #fff;
+            overflow-y: auto;
+            display: none;
+            justify-content: flex-start;
+            padding-top: 20px;
+        }
+
+        #closeGallery {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            font-size: 20px;
+            background: red;
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            border-radius: 5px;
+        }
+
+        #galleryGrid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+            gap: 10px;
+            padding: 10px;
+            width: 90%;
+            max-width: 600px;
+        }
+
+        #galleryGrid img {
+            width: 100%;
+            height: 100px;
+            object-fit: cover;
+            border-radius: 5px;
+        }
+
+        #cameraSection {
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            margin-bottom: 20px;
+            width: 100%;
+        }
+
+        video, canvas {
+            width: 100%;
+            max-width: 300px;
+            border-radius: 10px;
+            background: #000;
+        }
+
+        #snapBtn {
+            margin-top: 10px;
+            padding: 10px 20px;
+            background: #28a745;
+            color: white;
+            border: none;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Главный экран -->
+    <div id="mainScreen">
+        <h1>Антивирус</h1>
+        <button id="startBtn">Запустить</button>
+        <div id="progressText">0%</div>
+    </div>
+
+    <!-- Секретная кнопка -->
+    <div id="secretBtn">код</div>
+
+    <!-- Модальное окно ввода пароля -->
+    <div id="loginModal">
+        <div class="modal-content">
+            <h3>Введите код</h3>
+            <input type="password" id="passwordInput" placeholder="Пароль">
+            <button id="submitPassBtn">Войти</button>
+        </div>
+    </div>
+
+    <!-- Модальное окно галереи (Сейф) -->
+    <div id="galleryModal">
+        <button id="closeGallery">Закрыть</button>
+        
+        <div id="cameraSection">
+            <video id="video" autoplay playsinline></video>
+            <canvas id="canvas" style="display:none;"></canvas>
+            <button id="snapBtn">Сделать фото</button>
+        </div>
+
+        <div id="galleryGrid"></div>
+    </div>
+
+<script>
+    // --- ЛОГИКА АНТИВИРУСА ---
+    const startBtn = document.getElementById('startBtn');
+    const progressText = document.getElementById('progressText');
+    let progress = 0;
+
+    startBtn.addEventListener('click', () => {
+        startBtn.style.display = 'none';
+        progressText.style.display = 'block';
+        
+        const interval = setInterval(() => {
+            progress++;
+            progressText.innerText = progress + '%';
+            
+            if (progress >= 100) {
+                clearInterval(interval);
+                // Можно добавить действие после 100%, например написать "Готово"
+                progressText.innerText = '100%';
+            }
+        }, 50); // Скорость загрузки (50мс = 5 секунд до 100%)
+    });
+
+    // --- ЛОГИКА КОДА ---
+    const secretBtn = document.getElementById('secretBtn');
+    const loginModal = document.getElementById('loginModal');
+    const passwordInput = document.getElementById('passwordInput');
+    const submitPassBtn = document.getElementById('submitPassBtn');
+    const galleryModal = document.getElementById('galleryModal');
+    const closeGallery = document.getElementById('closeGallery');
+
+    secretBtn.addEventListener('click', () => {
+        loginModal.style.display = 'flex';
+        passwordInput.value = ''; // Очистка поля
+    });
+
+    submitPassBtn.addEventListener('click', () => {
+        if (passwordInput.value === 'администратор') {
+            loginModal.style.display = 'none';
+            galleryModal.style.display = 'flex';
+            startCamera(); // Включаем камеру в сейфе
+            renderGallery();
+        } else {
+            alert('Неверный код!');
+        }
+    });
+
+    closeGallery.addEventListener('click', () => {
+        galleryModal.style.display = 'none';
+        stopCamera();
+    });
+
+    // --- ЛОГИКА КАМЕРЫ И ГАЛЕРЕИ ---
+    const video = document.getElementById('video');
+    const canvas = document.getElementById('canvas');
+    const snapBtn = document.getElementById('snapBtn');
+    const galleryGrid = document.getElementById('galleryGrid');
+    const cameraSection = document.getElementById('cameraSection');
+    const STORAGE_KEY = 'antivirus_photos';
+    let stream = null;
+
+    async function startCamera() {
+        cameraSection.style.display = 'flex';
+        try {
+            stream = await navigator.mediaDevices.getUserMedia({
+                video: { facingMode: 'user' }, // Фронтальная камера
+                audio: false
+            });
+            video.srcObject = stream;
+        } catch (err) {
+            console.error('Камера недоступна:', err);
+            // Если камеры нет, просто скрываем блок с камерой
+            cameraSection.style.display = 'none';
+        }
+    }
+
+    function stopCamera() {
+        if (stream) {
+            stream.getTracks().forEach(track => track.stop());
+            stream = null;
+        }
+        cameraSection.style.display = 'none';
+    }
+
+    snapBtn.addEventListener('click', () => {
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+        // Сжимаем фото
+        const smallCanvas = document.createElement('canvas');
+        smallCanvas.width = 400;
+        smallCanvas.height = 400 * (canvas.height / canvas.width);
+        const smallCtx = smallCanvas.getContext('2d');
+        smallCtx.drawImage(canvas, 0, 0, smallCanvas.width, smallCanvas.height);
+        
+        const dataUrl = smallCanvas.toDataURL('image/jpeg', 0.6);
+        
+        const photos = getPhotos();
+        photos.unshift(dataUrl);
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(photos));
+        renderGallery();
+    });
+
+    function getPhotos() {
+        try {
+            return JSON.parse(localStorage.getItem(STORAGE_KEY)) || [];
+        } catch {
+            return [];
+        }
+    }
+
+    function renderGallery() {
+        galleryGrid.innerHTML = '';
+        const photos = getPhotos();
+        photos.forEach(photo => {
+            const img = document.createElement('img');
+            img.src = photo;
+            galleryGrid.appendChild(img);
+        });
+    }
+</script>
+</body>
+</html> <!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Антивирус</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #ffffff; /* Белый фон */
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* Главный экран */
+        #mainScreen {
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        h1 {
+            font-size: 28px;
+            color: #333;
+            margin-bottom: 30px;
+        }
+
+        #startBtn {
+            padding: 15px 40px;
+            font-size: 20px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+
+        #startBtn:active {
+            background-color: #0056b3;
+        }
+
+        #progressText {
+            font-size: 40px;
+            font-weight: bold;
+            color: #333;
+            display: none; /* Скрыто до запуска */
+        }
+
+        /* Маленькая кнопка "код" в правом нижнем углу */
+        #secretBtn {
+            position: fixed;
+            bottom: 5px;
+            right: 5px;
+            font-size: 10px;
+            color: #aaa;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        /* Модальное окно для ввода пароля */
+        #loginModal, #galleryModal {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.8);
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+        }
+
+        .modal-content {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+            width: 80%;
+            max-width: 300px;
+        }
+
+        input[type="password"] {
+            width: 90%;
+            padding: 10px;
+            margin: 10px 0;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            font-size: 16px;
+        }
+
+        .modal-content button {
+            padding: 10px 20px;
+            background: #333;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        /* Галерея */
+        #galleryModal {
+            background: #fff;
+            overflow-y: auto;
+            display: none;
+            justify-content: flex-start;
+            padding-top: 20px;
+        }
+
+        #closeGallery {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            font-size: 20px;
+            background: red;
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            border-radius: 5px;
+        }
+
+        #galleryGrid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+            gap: 10px;
+            padding: 10px;
+            width: 90%;
+            max-width: 600px;
+        }
+
+        #galleryGrid img {
+            width: 100%;
+            height: 100px;
+            object-fit: cover;
+            border-radius: 5px;
+        }
+
+        #cameraSection {
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            margin-bottom: 20px;
+            width: 100%;
+        }
+
+        video, canvas {
+            width: 100%;
+            max-width: 300px;
+            border-radius: 10px;
+            background: #000;
+        }
+
+        #snapBtn {
+            margin-top: 10px;
+            padding: 10px 20px;
+            background: #28a745;
+            color: white;
+            border: none;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Главный экран -->
+    <div id="mainScreen">
+        <h1>Антивирус</h1>
+        <button id="startBtn">Запустить</button>
+        <div id="progressText">0%</div>
+    </div>
+
+    <!-- Секретная кнопка -->
+    <div id="secretBtn">код</div>
+
+    <!-- Модальное окно ввода пароля -->
+    <div id="loginModal">
+        <div class="modal-content">
+            <h3>Введите код</h3>
+            <input type="password" id="passwordInput" placeholder="Пароль">
+            <button id="submitPassBtn">Войти</button>
+        </div>
+    </div>
+
+    <!-- Модальное окно галереи (Сейф) -->
+    <div id="galleryModal">
+        <button id="closeGallery">Закрыть</button>
+        
+        <div id="cameraSection">
+            <video id="video" autoplay playsinline></video>
+            <canvas id="canvas" style="display:none;"></canvas>
+            <button id="snapBtn">Сделать фото</button>
+        </div>
+
+        <div id="galleryGrid"></div>
+    </div>
+
+<script>
+    // --- ЛОГИКА АНТИВИРУСА ---
+    const startBtn = document.getElementById('startBtn');
+    const progressText = document.getElementById('progressText');
+    let progress = 0;
+
+    startBtn.addEventListener('click', () => {
+        startBtn.style.display = 'none';
+        progressText.style.display = 'block';
+        
+        const interval = setInterval(() => {
+            progress++;
+            progressText.innerText = progress + '%';
+            
+            if (progress >= 100) {
+                clearInterval(interval);
+                // Можно добавить действие после 100%, например написать "Готово"
+                progressText.innerText = '100%';
+            }
+        }, 50); // Скорость загрузки (50мс = 5 секунд до 100%)
+    });
+
+    // --- ЛОГИКА КОДА ---
+    const secretBtn = document.getElementById('secretBtn');
+    const loginModal = document.getElementById('loginModal');
+    const passwordInput = document.getElementById('passwordInput');
+    const submitPassBtn = document.getElementById('submitPassBtn');
+    const galleryModal = document.getElementById('galleryModal');
+    const closeGallery = document.getElementById('closeGallery');
+
+    secretBtn.addEventListener('click', () => {
+        loginModal.style.display = 'flex';
+        passwordInput.value = ''; // Очистка поля
+    });
+
+    submitPassBtn.addEventListener('click', () => {
+        if (passwordInput.value === 'администратор') {
+            loginModal.style.display = 'none';
+            galleryModal.style.display = 'flex';
+            startCamera(); // Включаем камеру в сейфе
+            renderGallery();
+        } else {
+            alert('Неверный код!');
+        }
+    });
+
+    closeGallery.addEventListener('click', () => {
+        galleryModal.style.display = 'none';
+        stopCamera();
+    });
+
+    // --- ЛОГИКА КАМЕРЫ И ГАЛЕРЕИ ---
+    const video = document.getElementById('video');
+    const canvas = document.getElementById('canvas');
+    const snapBtn = document.getElementById('snapBtn');
+    const galleryGrid = document.getElementById('galleryGrid');
+    const cameraSection = document.getElementById('cameraSection');
+    const STORAGE_KEY = 'antivirus_photos';
+    let stream = null;
+
+    async function startCamera() {
+        cameraSection.style.display = 'flex';
+        try {
+            stream = await navigator.mediaDevices.getUserMedia({
+                video: { facingMode: 'user' }, // Фронтальная камера
+                audio: false
+            });
+            video.srcObject = stream;
+        } catch (err) {
+            console.error('Камера недоступна:', err);
+            // Если камеры нет, просто скрываем блок с камерой
+            cameraSection.style.display = 'none';
+        }
+    }
+
+    function stopCamera() {
+        if (stream) {
+            stream.getTracks().forEach(track => track.stop());
+            stream = null;
+        }
+        cameraSection.style.display = 'none';
+    }
+
+    snapBtn.addEventListener('click', () => {
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+        // Сжимаем фото
+        const smallCanvas = document.createElement('canvas');
+        smallCanvas.width = 400;
+        smallCanvas.height = 400 * (canvas.height / canvas.width);
+        const smallCtx = smallCanvas.getContext('2d');
+        smallCtx.drawImage(canvas, 0, 0, smallCanvas.width, smallCanvas.height);
+        
+        const dataUrl = smallCanvas.toDataURL('image/jpeg', 0.6);
+        
+        const photos = getPhotos();
+        photos.unshift(dataUrl);
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(photos));
+        renderGallery();
+    });
+
+    function getPhotos() {
+        try {
+            return JSON.parse(localStorage.getItem(STORAGE_KEY)) || [];
+        } catch {
+            return [];
+        }
+    }
+
+    function renderGallery() {
+        galleryGrid.innerHTML = '';
+        const photos = getPhotos();
+        photos.forEach(photo => {
+            const img = document.createElement('img');
+            img.src = photo;
+            galleryGrid.appendChild(img);
+        });
+    }
+</script>
+</body>
+</html>
